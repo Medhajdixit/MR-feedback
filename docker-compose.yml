@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: campusfeedback-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: campusfeedback
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - campusfeedback-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/campusfeedback --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: campusfeedback-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - campusfeedback-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: campusfeedback-ipfs
+    restart: unless-stopped
+    ports:
+      - "4001:4001"     # P2P
+      - "5001:5001"     # API
+      - "8081:8080"     # Gateway (changed to avoid conflict)
+    volumes:
+      - ipfs_data:/data/ipfs
+      - ipfs_staging:/export
+    networks:
+      - campusfeedback-network
+    environment:
+      - IPFS_PROFILE=server
+    healthcheck:
+      test: ["CMD", "ipfs", "id"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ai-service:
+    build:
+      context: ./ai-services
+      dockerfile: Dockerfile
+    container_name: campusfeedback-ai
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - MODEL_PATH=/models
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+    volumes:
+      - ./ai-services:/app
+      - ai_models:/models
+    networks:
+      - campusfeedback-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: campusfeedback-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/campusfeedback
+      - REDIS_URL=redis://redis:6379
+      - AI_SERVICE_URL=http://ai-service:5000
+      - IPFS_API_URL=http://ipfs:5001
+      - JWT_SECRET=${JWT_SECRET}
+      - SHARDEUM_RPC_URL=${SHARDEUM_RPC_URL}
+      - PRIVACY_CONTRACT_ADDRESS=${PRIVACY_CONTRACT_ADDRESS}
+      - STUDENT_REGISTRY_ADDRESS=${STUDENT_REGISTRY_ADDRESS}
+      - AI_MODERATION_ADDRESS=${AI_MODERATION_ADDRESS}
+      - FEEDBACK_ADDRESS=${FEEDBACK_ADDRESS}
+      - POINT_ECONOMY_ADDRESS=${POINT_ECONOMY_ADDRESS}
+      - RATING_ADDRESS=${RATING_ADDRESS}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - campusfeedback-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: campusfeedback-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_SHARDEUM_RPC=http://localhost:8545
+      - NEXT_PUBLIC_CHAIN_ID=1337
+      - NEXT_PUBLIC_PRIVACY_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - NEXT_PUBLIC_STUDENT_REGISTRY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - NEXT_PUBLIC_AI_MODERATION_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      - NEXT_PUBLIC_FEEDBACK_ADDRESS=0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+      - NEXT_PUBLIC_POINT_ECONOMY_ADDRESS=0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+      - NEXT_PUBLIC_RATING_ADDRESS=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - campusfeedback-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
+  ipfs_data:
+    driver: local
+  ipfs_staging:
+    driver: local
+  ai_models:
+    driver: local
+
+networks:
+  campusfeedback-network:
+    driver: bridge

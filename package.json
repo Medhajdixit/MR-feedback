@@ -1,0 +1,61 @@
+{
+    "name": "campusfeedback-plus-2.0",
+    "version": "2.0.0",
+    "description": "AI-Moderated Campus Feedback System on Shardeum Blockchain",
+    "main": "index.js",
+    "scripts": {
+        "compile": "hardhat compile",
+        "test": "hardhat test",
+        "test:coverage": "hardhat coverage",
+        "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+        "deploy:shardeum": "hardhat run scripts/deploy.js --network shardeumUnstable",
+        "node": "hardhat node",
+        "clean": "hardhat clean",
+        "backend": "cd backend && npm start",
+        "frontend": "cd frontend && npm run dev",
+        "ai-service": "cd ai-services && python api/app.py",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "docker:logs": "docker-compose logs -f",
+        "lint": "eslint . --ext .js,.ts,.tsx",
+        "format": "prettier --write \"**/*.{js,ts,tsx,json,md}\""
+    },
+    "keywords": [
+        "blockchain",
+        "shardeum",
+        "ai",
+        "moderation",
+        "feedback",
+        "education",
+        "web3"
+    ],
+    "author": "CampusFeedback+ Team",
+    "license": "MIT",
+    "devDependencies": {
+        "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+        "@nomicfoundation/hardhat-ethers": "^3.0.0",
+        "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        "@nomicfoundation/hardhat-verify": "^2.0.0",
+        "@typechain/ethers-v6": "^0.5.0",
+        "@typechain/hardhat": "^9.0.0",
+        "@types/chai": "^4.3.0",
+        "@types/mocha": "^10.0.0",
+        "chai": "^4.3.10",
+        "eslint": "^8.50.0",
+        "hardhat": "^2.19.0",
+        "hardhat-gas-reporter": "^1.0.9",
+        "prettier": "^3.0.3",
+        "solidity-coverage": "^0.8.5",
+        "typechain": "^8.3.0"
+    },
+    "dependencies": {
+        "@openzeppelin/contracts": "^5.0.0",
+        "dotenv": "^16.3.1",
+        "ethers": "^6.9.0"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    }
+}
